@@ -1,0 +1,32 @@
+node {
+    environment { 
+        CC = 'clang'
+    }
+    stage ("Create build output"){
+     git 'https://github.com/habitat-sh/sample-node-app'  
+    }
+
+    dir('mydocker') {
+        git url: 'https://github.com/pksingh12/test1.git' 
+    }
+ 
+    stage ("build docker image"){
+        sh "cp ./mydocker/Dockerfile . && docker build -t prakashsingh08/mynode:q1_${env.BUILD_ID} ."
+        sh "rm -rf ./mydocker/Dockerfile"
+    }
+     
+    stage ("push docker image"){
+        withCredentials([string(credentialsId: 'dockerhubcredid', variable: 'dockerhubpswd')]) {
+          sh "docker login -u prakashsingh08 -p ${dockerhubpswd}"
+    
+        }
+        sh "docker push prakashsingh08/mynode:q1_${env.BUILD_ID}"
+    }
+    
+    stage ("ansible roles"){
+        sh "sed -i 's/BUILDNO/${env.BUILD_ID}/g' ./mydocker/roles/deploynodejs/vars/main.yaml && cat ./mydocker/roles/deploynodejs/vars/main.yaml"
+        sh "ansible-playbook ./mydocker/play.yaml --user prakashsingh -vvv"
+    }
+    
+
+}
